@@ -5,10 +5,10 @@
 
 const char* wifi_ssid        = "133-2.4G";
 const char* wifi_password    = "f2line..";
-const char* ntp_server       = "0.ru.pool.ntp.org";
-const int   ntp_correction   = +3;
-const int   ntp_interval     = 60;
-const int   ntp_retry_time   = 10;
+const char* ntp_server       = "0.ru.pool.ntp.org"; // Or "185.211.244.47" if your DNS server is not well reachable
+const int   ntp_correction   = +3; // hours
+const int   ntp_interval     = 60; // seconds
+const int   ntp_retry_time   = 10; // seconds
 const int   gpio_led         = 8;
 
 enum {S_INIT, S_CONN, S_TIME} status;
@@ -20,6 +20,7 @@ long ntp_started;
 
 void setup()
 {
+  // Don't forget to turn on "USB CDC on Boot" option, or you won't see any serial output.
   Serial.begin(115200);
   Serial.println("Initializing..");
   pinMode(gpio_led, OUTPUT);
