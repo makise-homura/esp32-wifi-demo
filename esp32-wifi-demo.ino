@@ -63,7 +63,7 @@ void loop() {
   time_t t = now();
   int half = millis() % 1000 < 500;
   char s = half ? ':': ' ';
-  Serial.printf("%02d%c%02d%c%02d %c\r", hour(t), s, minute(t), s, second(t), status >= S_TIME ? '+' : status >= S_CONN ? '*' : '?');
+  Serial.printf("%02d-%02d-%04d %02d%c%02d%c%02d [%s] [%s] (%ld dBm, channel %d)\n", day(t), month(t), year(t), hour(t), s, minute(t), s, second(t), WiFi.status() == WL_CONNECTED ? "CONN" : "OFFL" , status >= S_TIME ? "SYNC" : status >= S_CONN ? "SENT" : "SRCH", WiFi.RSSI(), WiFi.channel());
   digitalWrite(gpio_led, half ? LOW : HIGH);
   delay(100);
 }
