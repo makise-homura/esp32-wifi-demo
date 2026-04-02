@@ -1,6 +1,6 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include <NTPClient.h>
+#include "src/NTPClient/NTPClient.h"
 #include <TimeLib.h>
 
 const char* wifi_ssid        = "133-2.4G";
@@ -8,12 +8,15 @@ const char* wifi_password    = "f2line..";
 const char* ntp_server       = "0.ru.pool.ntp.org";
 const int   ntp_correction   = +3;
 const int   ntp_interval     = 60;
+const int   ntp_retry_time   = 10;
 const int   gpio_led         = 8;
 
 enum {S_INIT, S_CONN, S_TIME} status;
 
 WiFiUDP ntpUDP;
 NTPClient *timeClient;
+
+long ntp_started;
 
 void setup()
 {
@@ -33,16 +36,23 @@ void loop() {
       if (WiFi.status() == WL_CONNECTED)
       {
         Serial.printf("\r\nConnected to the WiFi network\r\nIP address: %s\r\n", WiFi.localIP().toString().c_str());
-        timeClient->update();
+        timeClient->startUpdate();
+        ntp_started = millis();
         status = S_CONN;
       }
       break;
     case S_CONN:
-      if (timeClient->isTimeSet())
+      if (timeClient->finishUpdate())
       {
         setTime(timeClient->getEpochTime());
         Serial.printf("\r\nSynchronized system time from %s\r\nCurrent time: %s\r\n", ntp_server, timeClient->getFormattedTime());
         status = S_TIME;
+      }
+      else if (millis() - ntp_started > ntp_retry_time * 1000)
+      {
+        Serial.printf("\r\nSyncing system time from %s failed, retyring...\r\n", ntp_server);
+        WiFi.begin(wifi_ssid, wifi_password);
+        status = S_INIT;
       }
       break;
   }

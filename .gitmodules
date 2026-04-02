@@ -1,0 +1,4 @@
+[submodule "src/NTPClient"]
+	path = src/NTPClient
+	url = https://github.com/makise-homura/NTPClient
+	branch = async
