@@ -51,7 +51,7 @@ void loop() {
       else if (millis() - ntp_started > ntp_retry_time * 1000)
       {
         Serial.printf("\r\nSyncing system time from %s failed, retyring...\r\n", ntp_server);
-        WiFi.begin(wifi_ssid, wifi_password);
+        WiFi.reconnect();
         status = S_INIT;
       }
       break;
