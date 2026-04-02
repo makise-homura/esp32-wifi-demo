@@ -10,6 +10,7 @@ const int          ntp_correction   = +3; // hours
 const int          ntp_interval     = 60; // seconds
 const int          ntp_retry_time   = 10; // seconds
 const int          gpio_led         = 8;
+const int          gpio_button      = 9;
 const wifi_power_t wifi_power       = WIFI_POWER_8_5dBm;
 
 enum {S_INIT, S_CONN, S_TIME} status;
@@ -18,6 +19,7 @@ WiFiUDP ntpUDP;
 NTPClient *timeClient;
 
 long ntp_started;
+bool btn_pressed = false;
 
 void setup()
 {
@@ -25,6 +27,7 @@ void setup()
   Serial.begin(115200);
   Serial.println("Initializing..");
   pinMode(gpio_led, OUTPUT);
+  pinMode(gpio_button, INPUT_PULLUP);
   WiFi.begin(wifi_ssid, wifi_password);
   WiFi.setTxPower(wifi_power);
   timeClient = new NTPClient(ntpUDP, ntp_server, ntp_correction * 3600, ntp_interval * 1000); 
@@ -57,6 +60,21 @@ void loop() {
         WiFi.reconnect();
         status = S_INIT;
       }
+      break;
+  }
+  switch(digitalRead(gpio_button))
+  {
+    case HIGH:
+      btn_pressed = false;
+      break;
+    case LOW:
+      if(btn_pressed == false)
+      {
+        Serial.printf("\r\nButton network reset requested, reconnecting...\r\n");
+        WiFi.reconnect();
+        status = S_INIT;
+      }
+      btn_pressed = true;
       break;
   }
 
