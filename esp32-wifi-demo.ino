@@ -3,13 +3,14 @@
 #include "src/NTPClient/NTPClient.h"
 #include <TimeLib.h>
 
-const char* wifi_ssid        = "133-2.4G";
-const char* wifi_password    = "f2line..";
-const char* ntp_server       = "0.ru.pool.ntp.org"; // Or "185.211.244.47" if your DNS server is not well reachable
-const int   ntp_correction   = +3; // hours
-const int   ntp_interval     = 60; // seconds
-const int   ntp_retry_time   = 10; // seconds
-const int   gpio_led         = 8;
+const char*        wifi_ssid        = "133-2.4G";
+const char*        wifi_password    = "f2line..";
+const char*        ntp_server       = "0.ru.pool.ntp.org"; // Or "185.211.244.47" if your DNS server is not well reachable
+const int          ntp_correction   = +3; // hours
+const int          ntp_interval     = 60; // seconds
+const int          ntp_retry_time   = 10; // seconds
+const int          gpio_led         = 8;
+const wifi_power_t wifi_power       = WIFI_POWER_8_5dBm;
 
 enum {S_INIT, S_CONN, S_TIME} status;
 
@@ -25,6 +26,7 @@ void setup()
   Serial.println("Initializing..");
   pinMode(gpio_led, OUTPUT);
   WiFi.begin(wifi_ssid, wifi_password);
+  WiFi.setTxPower(wifi_power);
   timeClient = new NTPClient(ntpUDP, ntp_server, ntp_correction * 3600, ntp_interval * 1000); 
   timeClient->begin();
   status = S_INIT;
