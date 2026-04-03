@@ -53,7 +53,7 @@ void setup()
 {
   UART_Messages.begin(115200);
   if (INIT_BOTH_UARTS) UART_Time.begin(115200);
-  UART_Messages.println("Initializing..");
+  UART_Messages.println("Initializing...");
   pinMode(gpio_led, OUTPUT);
   pinMode(gpio_button, INPUT_PULLUP);
   WiFi.begin(wifi_ssid, wifi_password);
