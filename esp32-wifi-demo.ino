@@ -3,6 +3,12 @@
 #include "src/NTPClient/NTPClient.h"
 #include <TimeLib.h>
 
+// USE_SINGLE_UART    "USB CDC on Boot" option     Result
+// ---------------------------------------------------------------------------------------------------------------------------------
+//    no effect              disabled              all output goes into GPIO UART (pin 20: RX to ESP32-C3, pin 21: TX from ESP32-C3)
+//       0                   enabled               messages go into USB UART, time goes into GPIO UART
+//       1                   enabled               all output goes into USB UART
+#define            USE_SINGLE_UART    0
 const char*        wifi_ssid        = "133-2.4G";
 const char*        wifi_password    = "f2line..";
 const char*        ntp_server       = "0.ru.pool.ntp.org"; // Or "185.211.244.47" if your DNS server is not well reachable
@@ -12,6 +18,28 @@ const int          ntp_retry_time   = 10; // seconds
 const int          gpio_led         = 8;
 const int          gpio_button      = 9;
 const wifi_power_t wifi_power       = WIFI_POWER_8_5dBm;
+
+#if(ARDUINO_USB_CDC_ON_BOOT)
+  #if(USE_SINGLE_UART)
+    #define UART_Messages HWCDCSerial
+    #define UART_Time HWCDCSerial
+    #define MSGSTART ""
+    #define TIMEEND  "\r\n"
+    #define INIT_BOTH_UARTS false
+  #else
+    #define UART_Messages HWCDCSerial
+    #define UART_Time Serial0
+    #define MSGSTART ""
+    #define TIMEEND  "\r"
+    #define INIT_BOTH_UARTS true
+  #endif
+#else
+  #define UART_Messages Serial0
+  #define UART_Time Serial0
+  #define MSGSTART "\r\n"
+  #define TIMEEND  "\r"
+  #define INIT_BOTH_UARTS false
+#endif
 
 enum {S_INIT, S_CONN, S_TIME} status;
 
@@ -23,9 +51,9 @@ bool btn_pressed = false;
 
 void setup()
 {
-  // Don't forget to turn on "USB CDC on Boot" option, or you won't see any serial output.
-  Serial.begin(115200);
-  Serial.println("Initializing..");
+  UART_Messages.begin(115200);
+  if (INIT_BOTH_UARTS) UART_Time.begin(115200);
+  UART_Messages.println("Initializing..");
   pinMode(gpio_led, OUTPUT);
   pinMode(gpio_button, INPUT_PULLUP);
   WiFi.begin(wifi_ssid, wifi_password);
@@ -41,7 +69,7 @@ void loop() {
     case S_INIT:
       if (WiFi.status() == WL_CONNECTED)
       {
-        Serial.printf("\r\nConnected to the WiFi network\r\nIP address: %s\r\n", WiFi.localIP().toString().c_str());
+        UART_Messages.printf(MSGSTART "Connected to the WiFi network\r\nIP address: %s\r\n", WiFi.localIP().toString().c_str());
         timeClient->startUpdate();
         ntp_started = millis();
         status = S_CONN;
@@ -51,12 +79,12 @@ void loop() {
       if (timeClient->finishUpdate())
       {
         setTime(timeClient->getEpochTime());
-        Serial.printf("\r\nSynchronized system time from %s\r\nCurrent time: %s\r\n", ntp_server, timeClient->getFormattedTime());
+        UART_Messages.printf(MSGSTART "Synchronized system time from %s\r\nCurrent time: %s\r\n", ntp_server, timeClient->getFormattedTime());
         status = S_TIME;
       }
       else if (millis() - ntp_started > ntp_retry_time * 1000)
       {
-        Serial.printf("\r\nSyncing system time from %s failed, retyring...\r\n", ntp_server);
+        UART_Messages.printf(MSGSTART "Syncing system time from %s failed, retyring...\r\n", ntp_server);
         WiFi.reconnect();
         status = S_INIT;
       }
@@ -70,7 +98,7 @@ void loop() {
     case LOW:
       if(btn_pressed == false)
       {
-        Serial.printf("\r\nButton network reset requested, reconnecting...\r\n");
+        UART_Messages.printf(MSGSTART "Button network reset requested, reconnecting...\r\n");
         WiFi.reconnect();
         status = S_INIT;
       }
@@ -81,7 +109,7 @@ void loop() {
   time_t t = now();
   int half = millis() % 1000 < 500;
   char s = half ? ':': ' ';
-  Serial.printf("%02d-%02d-%04d %02d%c%02d%c%02d [%s] [%s] (%ld dBm, channel %d)\n", day(t), month(t), year(t), hour(t), s, minute(t), s, second(t), WiFi.status() == WL_CONNECTED ? "CONN" : "OFFL" , status >= S_TIME ? "SYNC" : status >= S_CONN ? "SENT" : "SRCH", WiFi.RSSI(), WiFi.channel());
+  UART_Time.printf("%02d-%02d-%04d %02d%c%02d%c%02d [%s] [%s] (%ld dBm, channel %d)" TIMEEND, day(t), month(t), year(t), hour(t), s, minute(t), s, second(t), WiFi.status() == WL_CONNECTED ? "CONN" : "OFFL" , status >= S_TIME ? "SYNC" : status >= S_CONN ? "SENT" : "SRCH", WiFi.RSSI(), WiFi.channel());
   digitalWrite(gpio_led, half ? LOW : HIGH);
   delay(100);
 }
