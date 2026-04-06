@@ -11,7 +11,7 @@
 #define            USE_SINGLE_UART    0
 const char*        wifi_ssid        = "133-2.4G";
 const char*        wifi_password    = "f2line..";
-const char*        ntp_server       = "0.ru.pool.ntp.org"; // Or "185.211.244.47" if your DNS server is not well reachable
+const char*        ntp_server       = "0.ru.pool.ntp.org";
 const int          ntp_correction   = +3; // hours
 const int          ntp_interval     = 60; // seconds
 const int          ntp_retry_time   = 10; // seconds
@@ -45,6 +45,7 @@ enum {S_INIT, S_CONN, S_TIME} status;
 
 WiFiUDP ntpUDP;
 NTPClient *timeClient;
+IPAddress ntp_server_ipaddr;
 
 long ntp_started;
 bool btn_pressed = false;
@@ -58,8 +59,6 @@ void setup()
   pinMode(gpio_button, INPUT_PULLUP);
   WiFi.begin(wifi_ssid, wifi_password);
   WiFi.setTxPower(wifi_power);
-  timeClient = new NTPClient(ntpUDP, ntp_server, ntp_correction * 3600, ntp_interval * 1000); 
-  timeClient->begin();
   status = S_INIT;
 }
 
@@ -69,10 +68,22 @@ void loop() {
     case S_INIT:
       if (WiFi.status() == WL_CONNECTED)
       {
-        UART_Messages.printf(MSGSTART "Connected to the WiFi network\r\nIP address: %s\r\n", WiFi.localIP().toString().c_str());
-        timeClient->startUpdate();
-        ntp_started = millis();
-        status = S_CONN;
+        UART_Messages.printf(MSGSTART "Connected to the WiFi network\r\nIP address: %s\r\nResolving %s...\r\n", WiFi.localIP().toString().c_str(), ntp_server);
+        if(!WiFi.hostByName(ntp_server, ntp_server_ipaddr))
+        {
+          UART_Messages.printf(MSGSTART "Resolving time server %s failed, retrying...\r\n", ntp_server);
+          WiFi.reconnect();
+          status = S_INIT;
+        }
+        else
+        {
+          UART_Messages.printf(MSGSTART "NTP server %s resolved to: %s\r\n", ntp_server, ntp_server_ipaddr.toString().c_str());
+          timeClient = new NTPClient(ntpUDP, ntp_server_ipaddr, ntp_correction * 3600, ntp_interval * 1000);
+          timeClient->begin();
+          timeClient->startUpdate();
+          ntp_started = millis();
+          status = S_CONN;
+        }
       }
       break;
     case S_CONN:
@@ -84,7 +95,7 @@ void loop() {
       }
       else if (millis() - ntp_started > ntp_retry_time * 1000)
       {
-        UART_Messages.printf(MSGSTART "Syncing system time from %s failed, retyring...\r\n", ntp_server);
+        UART_Messages.printf(MSGSTART "Syncing system time from %s failed, retrying...\r\n", ntp_server);
         WiFi.reconnect();
         status = S_INIT;
       }
